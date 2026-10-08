@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>「國際AI技術趨勢與產業人才需求」第1次專家座談會 會前問卷</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS for real .xlsx import & export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Google Fonts: Inter & Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDK for Real-time Cloud Sync -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Setup Cloud Storage if configuration is provided by environment
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'ai-expert-survey-prod';
+    let db = null;
+    let auth = null;
+    let isCloudActive = false;
+
+    if (typeof __firebase_config !== 'undefined') {
+      try {
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        const initAuth = async () => {
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+          isCloudActive = true;
+          window.cloudDb = db;
+          window.cloudAppId = appId;
+          window.dispatchEvent(new CustomEvent('cloud-ready'));
+        };
+        initAuth().catch(err => console.warn('Cloud Auth Fallback to Local:', err));
+      } catch (e) {
+        console.warn('Cloud Database Init bypassed:', e);
+      }
+    }
+  </script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+          },
+          colors: {
+            pastel: {
+              sky: '#F0F7FD',
+              skyBorder: '#BAE0FD',
+              amber: '#FEF9EE',
+              amberBorder: '#FCE7BA',
+              mint: '#F2FAF5',
+              mintBorder: '#C1EBD0',
+              coral: '#FEF4F2',
+              coralBorder: '#FCD1C8',
+              lilac: '#F7F4FD',
+              lilacBorder: '#DECFF9',
+              teal: '#F0FAFA',
+              tealBorder: '#BDE8E8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbars and transitions */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .table-cell-input:focus {
+      outline: 2px solid #0d9488;
+      background-color: #f0fdfa;
+    }
+  </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-teal-100 selection:text-teal-900">
+
+  <!-- Top Global Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <!-- Title / Brand -->
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 via-emerald-500 to-sky-500 flex items-center justify-center text-white shadow-sm font-bold text-lg">
+          AI
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+            「國際AI技術趨勢與產業人才需求」
+          </h1>
+          <p class="text-xs text-slate-500">第1次專家座談會 會前問卷</p>
+        </div>
+      </div>
+
+      <!-- Action: Questionnaire Admin Login Button (Discreet) -->
+      <div class="flex items-center space-x-2">
+        <button 
+          id="btnOpenAdminAuth" 
+          onclick="openAdminAuthModal()" 
+          class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all duration-200 shadow-xs"
+          title="問卷管理"
+        >
+          <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <span>問卷管理</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View 1: Public Expert Questionnaire Form -->
+  <main id="surveyView" class="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
+    
+    <!-- Survey Hero Card -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 sm:p-8 mb-8 relative overflow-hidden">
+      <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-sky-400 via-teal-400 to-amber-300"></div>
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200/70">
+            專家會前調查
+          </span>
+          <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">
+            「國際AI技術趨勢與產業人才需求」<br class="hidden sm:inline"> 第1次專家座談會 會前問卷
+          </h2>
+        </div>
+      </div>
+
+      <!-- Completion Indicator Bar -->
+      <div class="mt-4 pt-4 border-t border-slate-100">
+        <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+          <span class="font-medium text-slate-700">填答進度</span>
+          <span id="surveyProgressText" class="font-semibold text-teal-600">0%</span>
+        </div>
+        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div id="surveyProgressBar" class="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full transition-all duration-300 w-0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Questionnaire Dynamic Form -->
+    <form id="expertSurveyForm" onsubmit="handleSurveySubmit(event)" class="space-y-6">
+      <div id="surveyQuestionsContainer" class="space-y-6">
+        <!-- Injected via JavaScript dynamically -->
+      </div>
+
+      <!-- Submit Section -->
+      <div class="pt-6 pb-12 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200">
+        <div class="text-xs text-slate-500">
+          標註 <span class="text-rose-500 font-bold">*</span> 之題目為必填項目
+        </div>
+        <button 
+          type="submit" 
+          id="btnSubmitSurvey"
+          class="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2 text-base cursor-pointer"
+        >
+          <span>確認並送出問卷</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <!-- Main View 2: Excel Spreadsheet Management Hub (Admin Only) -->
+  <main id="adminView" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-col">
+    <!-- Admin Top Toolbar -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <button 
+          onclick="switchToSurveyView()" 
+          class="px-3 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 text-sm font-medium flex items-center space-x-1.5 transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          <span>返回專家填答頁面</span>
+        </button>
+        <div class="h-6 w-px bg-slate-200"></div>
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <span>問卷試算表管理中心</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">雙向同步中</span>
+          </h2>
+          <p class="text-xs text-slate-500">修改儲存格或匯入 Excel 檔案後，專家問卷將自動同步更新</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Cloud Status Badge -->
+        <div id="cloudStatusBadge" class="hidden sm:flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 text-xs text-slate-600 border border-slate-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="cloudStatusText">雲端即時連線中</span>
+        </div>
+
+        <!-- How to Share Guide Button -->
+        <button 
+          onclick="openShareGuideModal()" 
+          class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs sm:text-sm font-semibold flex items-center space-x-1.5 transition-colors"
+          title="查看如何發送給他人填寫且不出現警訊"
+        >
+          <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+          </svg>
+          <span>發送分享與免警訊教學</span>
+        </button>
+
+        <!-- Tab Switchers -->
+        <div class="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-semibold">
+          <button 
+            id="tabBtnQuestions" 
+            onclick="switchSheetTab('questions')" 
+            class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-slate-900 transition-all"
+          >
+            工作表 1：問卷題目架構
+          </button>
+          <button 
+            id="tabBtnResponses" 
+            onclick="switchSheetTab('responses')" 
+            class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center space-x-1"
+          >
+            <span>工作表 2：填答資料蒐集</span>
+            <span id="responsesCountTag" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-700 font-bold">0</span>
+          </button>
+        </div>
+
+        <!-- Excel Export Button -->
+        <button 
+          onclick="exportToExcelFile()" 
+          class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center space-x-1.5 shadow-xs transition-colors"
+          title="下載完整包含題目與回覆的 .xlsx 檔案"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          <span>下載完整 Excel (.xlsx)</span>
+        </button>
+
+        <!-- Excel Import Button -->
+        <label 
+          class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center space-x-1.5 shadow-xs transition-colors cursor-pointer"
+          title="上傳修改後的 .xlsx 同步更新題目"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+          </svg>
+          <span>匯入 Excel 檔案</span>
+          <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="handleExcelFileUpload(event)">
+        </label>
+
+        <!-- Save and Sync Button -->
+        <button 
+          id="btnSaveSheetChanges"
+          onclick="saveAndSyncAllChanges()" 
+          class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-1.5 shadow-xs transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+          </svg>
+          <span id="saveSyncBtnText">修改完成存檔</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sheet 1 Table: Questions Structure -->
+    <div id="sheetQuestionsContainer" class="bg-white rounded-2xl border border-slate-200 shadow-xs flex-1 flex flex-col overflow-hidden min-h-[550px]">
+      <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500">
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-slate-700">工作表：問卷題目架構 (Questions)</span>
+          <span class="text-slate-400">|</span>
+          <span>點選儲存格可直接編輯內容，點擊「修改完成存檔」即同步前台</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="restoreDefaultQuestions()" class="text-xs text-slate-600 hover:text-rose-600 underline">
+            重設回預設題庫
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-slate-100/80 text-slate-700 font-semibold border-b border-slate-200">
+              <th class="p-2.5 w-16 border-r border-slate-200 text-center">題號</th>
+              <th class="p-2.5 w-32 border-r border-slate-200">所屬章節</th>
+              <th class="p-2.5 w-48 border-r border-slate-200">題目名稱</th>
+              <th class="p-2.5 w-72 border-r border-slate-200">說明文字</th>
+              <th class="p-2.5 w-28 border-r border-slate-200">題型</th>
+              <th class="p-2.5 min-w-[280px] border-r border-slate-200">選項 / 候選專案 (以逗號區隔)</th>
+              <th class="p-2.5 w-20 text-center">必填</th>
+            </tr>
+          </thead>
+          <tbody id="questionsTableBody" class="divide-y divide-slate-200">
+            <!-- Dynamic Spreadsheet Rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sheet 2 Table: Responses Data -->
+    <div id="sheetResponsesContainer" class="hidden bg-white rounded-2xl border border-slate-200 shadow-xs flex-1 flex flex-col overflow-hidden min-h-[550px]">
+      <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500">
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-slate-700">工作表：填答資料蒐集 (Responses)</span>
+          <span class="text-slate-400">|</span>
+          <span id="responseCountBadge">共 0 筆回覆</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="clearAllResponses()" class="text-xs text-rose-600 hover:text-rose-800 underline">
+            清空所有填答
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left text-xs border-collapse" id="responsesTable">
+          <thead id="responsesTableHeader">
+            <!-- Dynamic header from questions -->
+          </thead>
+          <tbody id="responsesTableBody" class="divide-y divide-slate-200">
+            <!-- Dynamic response rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Admin Authentication Modal (Password: 2912, no hint) -->
+  <div id="adminAuthModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 relative animate-in fade-in zoom-in duration-200">
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-slate-900">問卷管理</h3>
+      </div>
+
+      <form onsubmit="handleAdminAuth(event)" class="space-y-4">
+        <div>
+          <input 
+            type="password" 
+            id="adminPasswordInput" 
+            placeholder="請輸入密碼" 
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm outline-none transition-all text-center tracking-wider"
+            autofocus
+            required
+          >
+          <p id="adminAuthError" class="text-xs text-rose-500 mt-2 text-center hidden">密碼錯誤，請重新輸入</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button 
+            type="button" 
+            onclick="closeAdminAuthModal()" 
+            class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors"
+          >
+            取消
+          </button>
+          <button 
+            type="submit" 
+            class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-xs"
+          >
+            進入
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Submission Confirmation Modal -->
+  <div id="submitSuccessModal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 text-center">
+      <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center mb-4">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+      <h3 class="text-xl font-bold text-slate-900 mb-2">問卷已成功送出！</h3>
+      <div class="text-sm text-slate-600 space-y-3 text-left bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80 mb-6 leading-relaxed">
+        <p class="font-medium text-slate-800">感謝您的寶貴意見。</p>
+        <p>工作團隊將於「國際AI技術趨勢與產業人才需求」第1次專家座談會前彙整各位專家的初步判斷。座談會當日將依以下流程進行：</p>
+        <p class="text-teal-700 font-semibold pl-2 border-l-2 border-teal-500">
+          技術領域共識 → 候選國際 AI 專案逐項討論 → 凝聚值得後續研究與國際接洽的範圍
+        </p>
+        <p class="text-xs text-slate-500">
+          本次 Pre-survey 結果主要作為現場討論之輸入，不會單純以票數作為最終投入項目的決策依據。實際投入之國際專案，仍將由執行團隊於會後進一步進行國際合作、技術參與、人才與 Mentor 資源之可行性確認。
+        </p>
+      </div>
+      <button 
+        onclick="closeSubmitModal()" 
+        class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-all shadow-md cursor-pointer"
+      >
+        完成並返回
+      </button>
+    </div>
+  </div>
+
+  <!-- Share & Hosting Guide Modal -->
+  <div id="shareGuideModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">如何安全發送給專家填寫（無警訊）？</h3>
+        </div>
+        <button onclick="closeShareGuideModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <div class="p-3.5 bg-amber-50 rounded-xl border border-amber-200/80 text-amber-900">
+          <strong class="font-bold text-amber-950">為什麼直接傳檔案會有安全性警訊？</strong><br>
+          若直接用 LINE/Email 傳送未託管的 HTML 檔案，手機或 Chrome 瀏覽器會視為本機未知腳本，跳出紅黃色「可能含有危險」警訊，且專家填寫的資料只會存放在他自己的手機，您後端無法收到。
+        </div>
+
+        <h4 class="font-bold text-slate-900 text-sm sm:text-base pt-2">推薦 2 種「安全、免費、無警訊（HTTPS 綠色鎖頭）」發送方案：</h4>
+
+        <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-slate-900 flex items-center space-x-1.5">
+              <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">最快 1 分鐘</span>
+              <span>方案 A：使用 GitHub Pages 免費發布（推薦）</span>
+            </span>
+          </div>
+          <ol class="list-decimal list-inside space-y-1.5 text-slate-600">
+            <li>登入 GitHub 建立一個公開 Repository（例如叫 <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">ai-survey</code>）。</li>
+            <li>將本檔案命名為 <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800 font-semibold">index.html</code> 上傳。</li>
+            <li>到 Settings ➔ Pages ➔ Branch 選擇 <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">main</code> 儲存。</li>
+            <li>您將獲得專屬的官方安全網址（如 <code class="text-teal-700">https://yourname.github.io/ai-survey/</code>），專家點開百分之百安全無任何警報。</li>
+          </ol>
+        </div>
+
+        <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-slate-900 flex items-center space-x-1.5">
+              <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs font-semibold">拖曳即發布</span>
+              <span>方案 B：使用 Vercel / Netlify 拖曳部署</span>
+            </span>
+          </div>
+          <ol class="list-decimal list-inside space-y-1.5 text-slate-600">
+            <li>將本檔案命名為 <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">index.html</code> 放入一個資料夾。</li>
+            <li>直接拖入 Vercel 或 Netlify Drop 網站。</li>
+            <li>立即獲得全球 CDN 加速的正式 HTTPS 專屬短網址，手機與電腦秒開無警告。</li>
+          </ol>
+        </div>
+
+        <div class="p-3.5 bg-teal-50 rounded-xl border border-teal-200/80 text-teal-900">
+          <strong class="font-bold text-teal-950">填答資料如何匯入與下載？</strong><br>
+          各專家送出的問卷會即時同步至雲端。您隨時只需在該網址右上角點「<strong>問卷管理</strong>」輸入密碼 <strong>`2912`</strong>，點擊「<strong>下載完整 Excel (.xlsx)</strong>」，即可一鍵匯出包含全部專家填答的標準 Excel 試算表。
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button 
+          onclick="closeShareGuideModal()" 
+          class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors"
+        >
+          我知道了
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Toast Notification -->
+  <div id="toastNotification" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-2 text-sm">
+      <span id="toastIcon">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </span>
+      <span id="toastMessage">操作完成</span>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // Core Application State & Default Questionnaire Data Definition
+    // -------------------------------------------------------------
+    const defaultQuestionsData = [
+      // Expert Name Section (Direct text input, no question number)
+      {
+        id: "name",
+        section: "填答專家",
+        title: "請輸入您的姓名：",
+        helpText: "請輸入您的大名以利座談會議見彙整與統計。",
+        type: "text",
+        options: "",
+        required: true
+      },
+      // Section 1
+      {
+        id: "Q1",
+        section: "Section 1｜臺灣未來應掌握哪些 AI 軟體技術？",
+        title: "Q1｜未來 3–5 年臺灣不應缺席的 AI 軟體技術領域",
+        helpText: "未來 3–5 年，您認為下列哪些 AI 軟體技術領域，是臺灣「不應缺席、值得建立核心人才能力」的方向？（設定：最多選 5 項）",
+        type: "checkbox",
+        options: "Model / Post-training（模型訓練、後訓練、Alignment、RL、模型工具鏈等。）, AI Inference / Serving（模型部署、推論排程、GPU 記憶體管理、吞吐及效能最佳化。）, AI Compiler / Kernel（AI Compiler、GPU Kernel、硬體適配與運算最佳化。）, Distributed AI / Orchestration（多機、多 GPU、分散式執行、資源調度及 AI workload orchestration。）, AI Data Infrastructure（大規模資料處理、資料傳輸、Query Engine、Streaming 及 AI 資料基礎設施。）, Retrieval / Knowledge Infrastructure（Vector Search、RAG、Knowledge Retrieval 及外部知識存取技術。）, Agentic AI（Agent Runtime、Workflow、Tool Use、Memory、Protocol 及 Multi-Agent。）, MLOps / LLMOps / Evaluation（AI 系統部署、監控、Tracing、Evaluation、Observability 及治理。）, Edge / On-device AI（行動裝置、PC、Embedded／Edge 環境中的 AI Runtime、量化與推論。）",
+        required: true
+      },
+      {
+        id: "Q2",
+        section: "Section 1｜臺灣未來應掌握哪些 AI 軟體技術？",
+        title: "Q2｜臺灣未來 3–5 年最應優先建立哪一項能力",
+        helpText: "若上述技術領域只能優先選擇 1 項，您認為臺灣未來 3–5 年最應優先建立哪一項能力？",
+        type: "radio",
+        options: "Model / Post-training（模型訓練、後訓練、Alignment、RL、模型工具鏈等。）, AI Inference / Serving（模型部署、推論排程、GPU 記憶體管理、吞吐及效能最佳化。）, AI Compiler / Kernel（AI Compiler、GPU Kernel、硬體適配與運算最佳化。）, Distributed AI / Orchestration（多機、多 GPU、分散式執行、資源調度及 AI workload orchestration。）, AI Data Infrastructure（大規模資料處理、資料傳輸、Query Engine、Streaming 及 AI 資料基礎設施。）, Retrieval / Knowledge Infrastructure（Vector Search、RAG、Knowledge Retrieval 及外部知識存取技術。）, Agentic AI（Agent Runtime、Workflow、Tool Use、Memory、Protocol 及 Multi-Agent。）, MLOps / LLMOps / Evaluation（AI 系統部署、監控、Tracing、Evaluation、Observability 及治理。）, Edge / On-device AI（行動裝置、PC、Embedded／Edge 環境中的 AI Runtime、量化與推論。）",
+        required: true
+      },
+      {
+        id: "Q3",
+        section: "Section 1｜臺灣未來應掌握哪些 AI 軟體技術？",
+        title: "Q3｜技術領域是否有需要調整？",
+        helpText: "上述技術領域分類中，是否有您認為需要新增、合併、調整名稱或重新定義的重要方向？若有，請簡要說明。",
+        type: "textarea",
+        options: "",
+        required: false
+      },
+      // Section 2：候選專案評估 (Q4 - Q12) - Qx-1 融入各題的「其他」選項中
+      {
+        id: "Q4",
+        section: "候選專案評估",
+        title: "Q4｜Model / Post-training",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "PyTorch, JAX, Hugging Face Transformers, Hugging Face TRL, Hugging Face PEFT, Hugging Face Accelerate, DeepSpeed, Megatron-Core / Megatron-LM, torchtune, Axolotl, LLaMA-Factory, OpenRLHF, verl, Unsloth, NVIDIA NeMo",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q5",
+        section: "候選專案評估",
+        title: "Q5｜AI Inference / Serving",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "vLLM, SGLang, TensorRT-LLM, NVIDIA Dynamo, NVIDIA Triton Inference Server, llama.cpp, LMDeploy, ONNX Runtime, Aphrodite Engine, llm-d, LMCache, Xinference, BentoML",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q6",
+        section: "候選專案評估",
+        title: "Q6｜AI Compiler / Kernel",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "Triton Language, OpenXLA / XLA, MLIR, Apache TVM, IREE, NVIDIA CUTLASS, FlashAttention, Liger Kernel, TileLang, ROCm Composable Kernel, ROCm AITER, oneDNN, XNNPACK, LLVM",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q7",
+        section: "候選專案評估",
+        title: "Q7｜Distributed AI / Orchestration",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "Ray, KubeRay, Ray Serve, Kubeflow, Kubeflow Trainer, KServe, Volcano, Kueue, SkyPilot, Flyte, TorchTitan, Dask, Lightning Fabric, Slurm, Metaflow",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q8",
+        section: "候選專案評估",
+        title: "Q8｜AI Data Infrastructure",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "Apache Arrow, Apache DataFusion, Apache Kafka, Apache Spark, Apache Flink, Apache Iceberg, Delta Lake, Apache Hudi, DuckDB, Polars, Lance, Velox, Apache Parquet, Apache Ozone, Trino",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q9",
+        section: "候選專案評估",
+        title: "Q9｜Retrieval / Knowledge Infrastructure",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "Milvus, Qdrant, Weaviate, pgvector, FAISS, Chroma, Vespa, LanceDB, OpenSearch, Elasticsearch, Microsoft GraphRAG, RAGFlow, LlamaIndex, Haystack, txtai, Marqo",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q10",
+        section: "候選專案評估",
+        title: "Q10｜Agentic AI",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "LangGraph, Microsoft Agent Framework, Google Agent Development Kit（ADK）, OpenAI Agents SDK, Claude Agent SDK, CrewAI, Pydantic AI, Strands Agents, Agno, Hugging Face smolagents, Mastra, CAMEL-AI, AgentScope, Model Context Protocol Python SDK, Model Context Protocol TypeScript SDK",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q11",
+        section: "候選專案評估",
+        title: "Q11｜MLOps / LLMOps / Evaluation",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "MLflow, Langfuse, Arize Phoenix, OpenTelemetry, OpenInference, Evidently, DeepEval, Ragas, Promptfoo, Giskard, OpenLIT, Helicone, TruLens, Deepchecks, Comet Opik",
+        hasOther: true,
+        required: false
+      },
+      {
+        id: "Q12",
+        section: "候選專案評估",
+        title: "Q12｜Edge / On-device AI",
+        helpText: "請勾選您認為值得臺灣投入、建立人才能力或後續進一步接洽之候選專案（可複選，若不熟悉可略過）：",
+        type: "checkbox",
+        options: "ExecuTorch, Google LiteRT, OpenVINO, ncnn, MNN, MediaPipe, whisper.cpp, Apple MLX, Core ML Tools, TensorFlow Lite Micro",
+        hasOther: true,
+        required: false
+      },
+      // Section 3
+      {
+        id: "Q13",
+        section: "Section 3｜Contributor／Mentor／合作機會",
+        title: "Q13｜是否有建議進一步交流的專家或單位？",
+        helpText: "就上述您較熟悉的領域或專案，是否知道臺灣或國際上已有適合進一步交流的 Contributor、Maintainer、研究團隊、企業、基金會或技術社群？",
+        type: "textarea",
+        options: "",
+        required: false
+      }
+    ];
+
+    // State Variables
+    let questionsData = [];
+    let responsesData = [];
+
+    // Cloud Listener Setup
+    window.addEventListener('cloud-ready', () => {
+      initCloudSync();
+    });
+
+    async function initCloudSync() {
+      if (!window.cloudDb) return;
+      try {
+        const { collection, onSnapshot, getFirestore } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+        const responsesCol = collection(window.cloudDb, 'artifacts', window.cloudAppId, 'public', 'data', 'survey_responses');
+        
+        // Listen to remote changes in real time
+        onSnapshot(responsesCol, (snapshot) => {
+          const cloudResponses = [];
+          snapshot.forEach(docSnap => {
+            cloudResponses.push({ _docId: docSnap.id, ...docSnap.data() });
+          });
+          
+          if (cloudResponses.length > 0) {
+            // Merge or update local state
+            responsesData = cloudResponses;
+            saveState();
+            renderResponsesTable();
+          }
+        }, (err) => {
+          console.warn("Cloud snapshot error:", err);
+        });
+
+        const badge = document.getElementById('cloudStatusBadge');
+        if (badge) badge.classList.remove('hidden');
+      } catch (e) {
+        console.warn('Real-time sync attachment skipped:', e);
+      }
+    }
+
+    // Initialize data from LocalStorage (bumped to v18 for Q13 update)
+    try {
+      const savedQ = localStorage.getItem('ai_survey_v18_questions');
+      if (savedQ) {
+        questionsData = JSON.parse(savedQ);
+      } else {
+        questionsData = JSON.parse(JSON.stringify(defaultQuestionsData));
+      }
+    } catch(e) {
+      questionsData = JSON.parse(JSON.stringify(defaultQuestionsData));
+    }
+
+    try {
+      const savedR = localStorage.getItem('ai_survey_v18_responses') || localStorage.getItem('ai_survey_v17_responses') || localStorage.getItem('ai_survey_v16_responses') || localStorage.getItem('ai_survey_v15_responses');
+      responsesData = savedR ? JSON.parse(savedR) : [];
+      // Seamlessly migrate prior Q16 responses to Q13
+      responsesData.forEach(item => {
+        if (item.Q16 !== undefined && item.Q13 === undefined) {
+          item.Q13 = item.Q16;
+        }
+      });
+    } catch(e) {
+      responsesData = [];
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem('ai_survey_v18_questions', JSON.stringify(questionsData));
+        localStorage.setItem('ai_survey_v18_responses', JSON.stringify(responsesData));
+      } catch (err) {
+        console.warn("Storage sync failed", err);
+      }
+    }
+
+    // Pastel Section Badges & Themes
+    function getSectionTheme(sectionName) {
+      if (sectionName.includes("Section 1")) {
+        return {
+          badgeBg: "bg-amber-50 text-amber-800 border-amber-200/80",
+          cardBorder: "border-amber-100 hover:border-amber-300",
+          accentLine: "bg-amber-400"
+        };
+      }
+      if (sectionName.includes("候選專案評估") || sectionName.includes("Section 2")) {
+        return {
+          badgeBg: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
+          cardBorder: "border-emerald-100 hover:border-emerald-300",
+          accentLine: "bg-emerald-400"
+        };
+      }
+      if (sectionName.includes("Section 3") || sectionName.includes("合作機會") || sectionName.includes("合作線索")) {
+        return {
+          badgeBg: "bg-teal-50 text-teal-800 border-teal-200/80",
+          cardBorder: "border-teal-100 hover:border-teal-300",
+          accentLine: "bg-teal-400"
+        };
+      }
+      return {
+        badgeBg: "bg-sky-50 text-sky-800 border-sky-200/80",
+        cardBorder: "border-sky-100 hover:border-sky-300",
+        accentLine: "bg-sky-400"
+      };
+    }
+
+    // Render Questionnaire Form
+    function renderSurvey() {
+      const container = document.getElementById('surveyQuestionsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      let lastSection = null;
+
+      questionsData.forEach((q, index) => {
+        const theme = getSectionTheme(q.section || '');
+
+        // Render Section Header if changed
+        if (q.section && q.section !== lastSection) {
+          lastSection = q.section;
+          const sectionDiv = document.createElement('div');
+          sectionDiv.className = "pt-4 pb-2";
+          sectionDiv.innerHTML = `
+            <div class="flex items-center space-x-2">
+              <span class="w-1.5 h-5 rounded-full ${theme.accentLine}"></span>
+              <span class="px-3 py-1 rounded-full text-xs font-semibold border ${theme.badgeBg}">
+                ${escapeHTML(q.section)}
+              </span>
+            </div>
+          `;
+          container.appendChild(sectionDiv);
+        }
+
+        // Render Question Card
+        const card = document.createElement('div');
+        card.className = `bg-white rounded-2xl p-5 sm:p-7 border ${theme.cardBorder} shadow-xs transition-all duration-200 relative`;
+        card.id = `q_card_${q.id}`;
+
+        const isRequired = String(q.required).toLowerCase() === 'true';
+
+        let innerHTML = `
+          <div class="mb-4">
+            <div class="flex items-baseline justify-between">
+              <h3 class="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                ${escapeHTML(q.title)}
+                ${isRequired ? '<span class="text-rose-500 font-bold ml-1">*必填</span>' : ''}
+              </h3>
+            </div>
+            ${q.helpText ? `
+              <p class="text-sm sm:text-base text-slate-600 mt-2 whitespace-pre-line leading-relaxed font-normal bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                ${escapeHTML(q.helpText)}
+              </p>
+            ` : ''}
+          </div>
+        `;
+
+        // Render inputs according to question type
+        const optionsList = q.options ? q.options.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+        if (q.type === 'checkbox') {
+          // Checkbox grid
+          const isQ1 = (q.id === 'Q1');
+          const hasOther = Boolean(q.hasOther);
+
+          innerHTML += `
+            <div class="grid grid-cols-1 ${optionsList.length > 6 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2'} gap-2.5 pt-1">
+              ${optionsList.map((opt, optIndex) => `
+                <label class="flex items-start p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50/30 cursor-pointer transition-colors text-sm text-slate-700 select-none group">
+                  <input 
+                    type="checkbox" 
+                    name="q_${q.id}" 
+                    value="${escapeHTML(opt)}" 
+                    class="mt-0.5 w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 transition-colors"
+                    ${isQ1 ? 'onchange="handleQ1CheckboxChange(this)"' : 'onchange="updateSurveyProgress()"'}
+                  >
+                  <span class="ml-2.5 font-medium leading-relaxed group-hover:text-slate-900">${escapeHTML(opt)}</span>
+                </label>
+              `).join('')}
+
+              ${hasOther ? `
+                <div class="col-span-full mt-1.5 p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 hover:bg-slate-50 transition-colors">
+                  <label class="flex items-center cursor-pointer select-none text-sm text-slate-800 font-medium group">
+                    <input 
+                      type="checkbox" 
+                      name="q_${q.id}" 
+                      value="__other__" 
+                      id="cb_${q.id}_other"
+                      class="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 transition-colors"
+                      onchange="handleOtherCheckboxChange('${q.id}', this.checked)"
+                    >
+                    <span class="ml-2.5 font-bold text-slate-800 group-hover:text-teal-800">其他</span>
+                    <span class="text-xs text-slate-500 font-normal ml-1">（請輸入專案名稱及建議納入原因）</span>
+                  </label>
+                  <div class="mt-2.5 pl-6.5">
+                    <textarea 
+                      name="q_${q.id}_other_text" 
+                      id="text_${q.id}_other"
+                      rows="2" 
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-xs sm:text-sm leading-relaxed bg-white outline-none transition-all placeholder:text-slate-400"
+                      placeholder="請輸入專案名稱及建議納入原因..."
+                      oninput="handleOtherTextInput('${q.id}', this.value)"
+                    ></textarea>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        } else if (q.type === 'radio') {
+          innerHTML += `
+            <div class="space-y-2 pt-1">
+              ${optionsList.map((opt, optIndex) => `
+                <label class="flex items-start p-3 rounded-xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/30 cursor-pointer transition-colors text-sm text-slate-700 select-none group">
+                  <input 
+                    type="radio" 
+                    name="q_${q.id}" 
+                    value="${escapeHTML(opt)}" 
+                    class="mt-0.5 w-4 h-4 text-sky-600 focus:ring-sky-500 border-slate-300 transition-colors"
+                    ${isRequired ? 'required' : ''}
+                    onchange="updateSurveyProgress()"
+                  >
+                  <span class="ml-2.5 font-medium leading-relaxed group-hover:text-slate-900">${escapeHTML(opt)}</span>
+                </label>
+              `).join('')}
+            </div>
+          `;
+        } else if (q.type === 'textarea') {
+          innerHTML += `
+            <div class="pt-1">
+              <textarea 
+                name="q_${q.id}" 
+                rows="4" 
+                class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm leading-relaxed transition-all outline-none"
+                placeholder="請輸入您的具體想法與建議..."
+                ${isRequired ? 'required' : ''}
+                oninput="updateSurveyProgress()"
+              ></textarea>
+            </div>
+          `;
+        } else {
+          // Default text input
+          innerHTML += `
+            <div class="pt-1">
+              <input 
+                type="text" 
+                name="q_${q.id}" 
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm transition-all outline-none"
+                placeholder="請填寫..."
+                ${isRequired ? 'required' : ''}
+                oninput="updateSurveyProgress()"
+              >
+            </div>
+          `;
+        }
+
+        card.innerHTML = innerHTML;
+        container.appendChild(card);
+      });
+
+      updateSurveyProgress();
+    }
+
+    // Handle Q1 max 5 checkboxes rule
+    function handleQ1CheckboxChange(checkbox) {
+      const checkedBoxes = document.querySelectorAll('input[name="q_Q1"]:checked');
+      if (checkedBoxes.length > 5) {
+        checkbox.checked = false;
+        showToast("第一題（Q1）最多僅能勾選 5 項技術領域！", "warning");
+      }
+      updateSurveyProgress();
+    }
+
+    // Handle integrated other checkbox & text interactions
+    function handleOtherCheckboxChange(qId, isChecked) {
+      const textarea = document.getElementById(`text_${qId}_other`);
+      if (isChecked && textarea) {
+        textarea.focus();
+      }
+      updateSurveyProgress();
+    }
+
+    function handleOtherTextInput(qId, val) {
+      const cb = document.getElementById(`cb_${qId}_other`);
+      if (cb) {
+        cb.checked = val.trim().length > 0;
+      }
+      updateSurveyProgress();
+    }
+
+    // Calculate Survey Completion Progress
+    function updateSurveyProgress() {
+      const progressBar = document.getElementById('surveyProgressBar');
+      const progressText = document.getElementById('surveyProgressText');
+      if (!progressBar || !progressText) return;
+
+      const requiredQuestions = questionsData.filter(q => String(q.required).toLowerCase() === 'true');
+      if (requiredQuestions.length === 0) {
+        progressBar.style.width = '100%';
+        progressText.innerText = '100%';
+        return;
+      }
+
+      let completedCount = 0;
+      requiredQuestions.forEach(q => {
+        if (q.type === 'checkbox') {
+          const checked = document.querySelectorAll(`input[name="q_${q.id}"]:checked`);
+          if (checked.length > 0) completedCount++;
+        } else if (q.type === 'radio') {
+          const checked = document.querySelector(`input[name="q_${q.id}"]:checked`);
+          if (checked) completedCount++;
+        } else {
+          const input = document.querySelector(`[name="q_${q.id}"]`);
+          if (input && input.value.trim() !== '') completedCount++;
+        }
+      });
+
+      const percentage = Math.round((completedCount / requiredQuestions.length) * 100);
+      progressBar.style.width = `${percentage}%`;
+      progressText.innerText = `${percentage}%`;
+    }
+
+    // Survey Submission Handler
+    async function handleSurveySubmit(event) {
+      event.preventDefault();
+
+      // Validate required checkboxes (e.g. Q1)
+      const q1Checked = document.querySelectorAll('input[name="q_Q1"]:checked');
+      if (q1Checked.length === 0) {
+        showToast("請至少勾選一項 Q1 技術領域！", "error");
+        document.getElementById('q_card_Q1')?.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+
+      // Validate expert name input
+      const nameInput = document.querySelector('input[name="q_name"]');
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+      if (!nameVal) {
+        showToast("請輸入您的姓名！", "error");
+        document.getElementById('q_card_name')?.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+
+      const submitBtn = document.getElementById('btnSubmitSurvey');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "資料傳送中...";
+      }
+
+      // Collect Answers
+      const responseEntry = {
+        timestamp: new Date().toLocaleString('zh-TW', { hour12: false })
+      };
+
+      questionsData.forEach(q => {
+        if (q.type === 'checkbox') {
+          const checked = Array.from(document.querySelectorAll(`input[name="q_${q.id}"]:checked`))
+            .map(c => c.value)
+            .filter(v => v !== '__other__');
+          
+          const otherTextEl = document.querySelector(`[name="q_${q.id}_other_text"]`);
+          const otherText = otherTextEl ? otherTextEl.value.trim() : '';
+          if (otherText) {
+            checked.push(`其他：${otherText}`);
+          }
+          responseEntry[q.id] = checked.join(', ');
+        } else if (q.type === 'radio') {
+          const checked = document.querySelector(`input[name="q_${q.id}"]:checked`);
+          responseEntry[q.id] = checked ? checked.value : '';
+        } else {
+          const el = document.querySelector(`[name="q_${q.id}"]`);
+          responseEntry[q.id] = el ? el.value.trim() : '';
+        }
+      });
+
+      // Save to Cloud Firestore if active
+      if (window.cloudDb && window.cloudAppId) {
+        try {
+          const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+          const responsesCol = collection(window.cloudDb, 'artifacts', window.cloudAppId, 'public', 'data', 'survey_responses');
+          await addDoc(responsesCol, responseEntry);
+        } catch (e) {
+          console.warn("Cloud submission fallback to local:", e);
+        }
+      }
+
+      // Local persistence fallback
+      responsesData.push(responseEntry);
+      saveState();
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>確認並送出問卷</span><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
+      }
+
+      // Show submission success modal
+      document.getElementById('submitSuccessModal').classList.remove('hidden');
+      document.getElementById('submitSuccessModal').classList.add('flex');
+    }
+
+    function closeSubmitModal() {
+      document.getElementById('submitSuccessModal').classList.add('hidden');
+      document.getElementById('submitSuccessModal').classList.remove('flex');
+      // Reset form and scroll to top
+      document.getElementById('expertSurveyForm').reset();
+      updateSurveyProgress();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Render Questions Sheet Table in Admin Hub
+    function renderQuestionsTable() {
+      const tbody = document.getElementById('questionsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      questionsData.forEach((q, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/80 transition-colors";
+        tr.dataset.index = idx;
+
+        tr.innerHTML = `
+          <td class="p-2 border-r border-slate-200 text-center font-bold text-slate-700 bg-slate-50/50">
+            <input type="text" value="${escapeHTML(q.id)}" class="w-full text-center bg-transparent border-0 table-cell-input rounded p-1 font-bold" oninput="handleCellInput(${idx}, 'id', this.value)">
+          </td>
+          <td class="p-2 border-r border-slate-200">
+            <input type="text" value="${escapeHTML(q.section || '')}" class="w-full bg-transparent border-0 table-cell-input rounded p-1" oninput="handleCellInput(${idx}, 'section', this.value)">
+          </td>
+          <td class="p-2 border-r border-slate-200">
+            <input type="text" value="${escapeHTML(q.title)}" class="w-full bg-transparent border-0 table-cell-input rounded p-1 font-semibold text-slate-800" oninput="handleCellInput(${idx}, 'title', this.value)">
+          </td>
+          <td class="p-2 border-r border-slate-200">
+            <textarea rows="2" class="w-full bg-transparent border-0 table-cell-input rounded p-1 text-slate-600 resize-y" oninput="handleCellInput(${idx}, 'helpText', this.value)">${escapeHTML(q.helpText || '')}</textarea>
+          </td>
+          <td class="p-2 border-r border-slate-200">
+            <select class="w-full bg-transparent border border-slate-200 rounded p-1 text-xs" onchange="handleCellInput(${idx}, 'type', this.value)">
+              <option value="checkbox" ${q.type === 'checkbox' ? 'selected' : ''}>複選 (checkbox)</option>
+              <option value="radio" ${q.type === 'radio' ? 'selected' : ''}>單選 (radio)</option>
+              <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>多行文字 (textarea)</option>
+              <option value="text" ${q.type === 'text' ? 'selected' : ''}>單行文字 (text)</option>
+            </select>
+          </td>
+          <td class="p-2 border-r border-slate-200">
+            <textarea rows="2" class="w-full bg-transparent border-0 table-cell-input rounded p-1 text-slate-600 resize-y" placeholder="以英文逗號分隔選項" oninput="handleCellInput(${idx}, 'options', this.value)">${escapeHTML(q.options || '')}</textarea>
+          </td>
+          <td class="p-2 text-center">
+            <input type="checkbox" ${String(q.required).toLowerCase() === 'true' ? 'checked' : ''} class="w-4 h-4 text-teal-600 rounded border-slate-300" onchange="handleCellInput(${idx}, 'required', this.checked)">
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Direct cell input updates
+    function handleCellInput(index, field, value) {
+      if (questionsData[index]) {
+        questionsData[index][field] = value;
+      }
+    }
+
+    // Harvest questions from all DOM inputs to prevent loss of active edits
+    function harvestQuestionsFromDOM() {
+      const rows = document.querySelectorAll('#questionsTableBody tr');
+      if (!rows || rows.length === 0) return;
+
+      const updated = [];
+      rows.forEach((row, idx) => {
+        const inputs = row.querySelectorAll('input, textarea, select');
+        if (inputs.length >= 6) {
+          const original = questionsData[idx] || {};
+          updated.push({
+            id: inputs[0].value.trim(),
+            section: inputs[1].value.trim(),
+            title: inputs[2].value.trim(),
+            helpText: inputs[3].value.trim(),
+            type: inputs[4].value.trim(),
+            options: inputs[5].value.trim(),
+            hasOther: Boolean(original.hasOther),
+            required: inputs[6].checked
+          });
+        }
+      });
+      if (updated.length > 0) {
+        questionsData = updated;
+      }
+    }
+
+    // Save and Sync Button Handler
+    function saveAndSyncAllChanges() {
+      harvestQuestionsFromDOM();
+      saveState();
+      renderSurvey();
+      renderQuestionsTable();
+      renderResponsesTable();
+
+      const btn = document.getElementById('btnSaveSheetChanges');
+      const text = document.getElementById('saveSyncBtnText');
+      if (btn && text) {
+        btn.classList.remove('bg-teal-600', 'hover:bg-teal-700');
+        btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+        text.innerText = "已成功存檔！";
+        setTimeout(() => {
+          btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+          btn.classList.add('bg-teal-600', 'hover:bg-teal-700');
+          text.innerText = "修改完成存檔";
+        }, 1800);
+      }
+      showToast("已完成存檔，並即刻同步至專家問卷！", "success");
+    }
+
+    // Render Responses Table
+    function renderResponsesTable() {
+      const thead = document.getElementById('responsesTableHeader');
+      const tbody = document.getElementById('responsesTableBody');
+      const countBadge = document.getElementById('responseCountBadge');
+      const countTag = document.getElementById('responsesCountTag');
+
+      if (countBadge) countBadge.innerText = `共 ${responsesData.length} 筆回覆`;
+      if (countTag) countTag.innerText = responsesData.length;
+
+      if (!thead || !tbody) return;
+
+      // Header row
+      thead.innerHTML = `
+        <tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+          <th class="p-2.5 w-12 text-center border-r border-slate-200">#</th>
+          <th class="p-2.5 w-36 border-r border-slate-200">填答時間</th>
+          ${questionsData.map(q => `
+            <th class="p-2.5 min-w-[200px] border-r border-slate-200 truncate" title="${escapeHTML(q.title)}">
+              ${escapeHTML(q.id)}｜${escapeHTML(q.title.replace(/^Q\d+(-1)?｜/, ''))}
+            </th>
+          `).join('')}
+        </tr>
+      `;
+
+      // Body rows
+      if (responsesData.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${questionsData.length + 2}" class="p-12 text-center text-slate-400">
+              目前尚無專家填答紀錄
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = responsesData.map((res, i) => `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-2.5 text-center text-slate-400 border-r border-slate-200 font-medium">${i + 1}</td>
+          <td class="p-2.5 text-slate-500 border-r border-slate-200 font-mono text-[11px] whitespace-nowrap">${escapeHTML(res.timestamp || '')}</td>
+          ${questionsData.map(q => `
+            <td class="p-2.5 border-r border-slate-200 text-slate-700 whitespace-pre-wrap leading-relaxed">
+              ${escapeHTML(res[q.id] || '—')}
+            </td>
+          `).join('')}
+        </tr>
+      `).join('');
+    }
+
+    // Export both sheets into a native .xlsx file
+    function exportToExcelFile() {
+      harvestQuestionsFromDOM();
+      saveState();
+
+      if (typeof XLSX === 'undefined') {
+        showToast("Excel 函式庫載入中，請稍候重試", "warning");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Questions Structure
+      const questionsExportData = questionsData.map(q => ({
+        "題號": q.id,
+        "所屬章節": q.section || '',
+        "題目名稱": q.title,
+        "說明文字": q.helpText || '',
+        "題型": q.type,
+        "選項/候選專案": q.options || '',
+        "是否必填": String(q.required).toLowerCase() === 'true' ? '是' : '否'
+      }));
+      const wsQuestions = XLSX.utils.json_to_sheet(questionsExportData);
+      XLSX.utils.book_append_sheet(wb, wsQuestions, "問卷題目架構");
+
+      // Sheet 2: Responses Data
+      const responsesExportData = responsesData.map((res, idx) => {
+        const row = {
+          "序號": idx + 1,
+          "填答時間戳記": res.timestamp || ''
+        };
+        questionsData.forEach(q => {
+          row[`[${q.id}] ${q.title}`] = res[q.id] || '';
+        });
+        return row;
+      });
+      const wsResponses = XLSX.utils.json_to_sheet(responsesExportData);
+      XLSX.utils.book_append_sheet(wb, wsResponses, "問卷填答資料");
+
+      // Download .xlsx file
+      const timestamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `「國際AI技術趨勢與產業人才需求」_第1次專家座談會_會前問卷_${timestamp}.xlsx`);
+      showToast("已成功匯出 Excel 試算表檔案！", "success");
+    }
+
+    // Import from .xlsx file to sync questions dynamically
+    function handleExcelFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          // Look for questions sheet
+          let questionsSheetName = workbook.SheetNames.find(n => n.includes("題目") || n.toLowerCase().includes("question"));
+          if (!questionsSheetName) {
+            questionsSheetName = workbook.SheetNames[0]; // fallback to first sheet
+          }
+
+          const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[questionsSheetName], { defval: "" });
+
+          if (rawRows.length === 0) {
+            showToast("讀取的 Excel 檔案中無題目資料！", "error");
+            return;
+          }
+
+          const parsedQuestions = rawRows.map(row => {
+            const id = String(row["題號"] || row["ID"] || row["id"] || "").trim();
+            const section = String(row["所屬章節"] || row["章節"] || row["section"] || "").trim();
+            const title = String(row["題目名稱"] || row["題目"] || row["title"] || "").trim();
+            const helpText = String(row["說明文字"] || row["說明"] || row["helpText"] || "").trim();
+            let type = String(row["題型"] || row["type"] || "text").trim().toLowerCase();
+            if (type.includes("複選") || type.includes("多選")) type = "checkbox";
+            if (type.includes("單選")) type = "radio";
+            if (type.includes("多行")) type = "textarea";
+
+            const options = String(row["選項/候選專案"] || row["選項"] || row["options"] || "").trim();
+            const requiredVal = String(row["是否必填"] || row["必填"] || row["required"] || "").trim();
+            const required = (requiredVal === "是" || requiredVal.toLowerCase() === "true" || requiredVal === "1");
+
+            return { id, section, title, helpText, type, options, required };
+          }).filter(q => q.id);
+
+          if (parsedQuestions.length > 0) {
+            questionsData = parsedQuestions;
+            saveState();
+            renderSurvey();
+            renderQuestionsTable();
+            renderResponsesTable();
+            showToast(`已從 Excel 成功同步 ${parsedQuestions.length} 道題目至問卷！`, "success");
+          } else {
+            showToast("無法辨識 Excel 欄位格式，請確認包含『題號』與『題目名稱』！", "error");
+          }
+        } catch(err) {
+          console.error(err);
+          showToast("解析 Excel 檔案發生錯誤，請確認檔案格式！", "error");
+        }
+        event.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Restore default questions
+    function restoreDefaultQuestions() {
+      if (window.confirm("確定要將題目恢復為初始設定嗎？自訂修改將被清除。")) {
+        questionsData = JSON.parse(JSON.stringify(defaultQuestionsData));
+        saveState();
+        renderSurvey();
+        renderQuestionsTable();
+        renderResponsesTable();
+        showToast("已成功恢復為預設題目！", "success");
+      }
+    }
+
+    // Modal Control: Share & Guide Modal
+    function openShareGuideModal() {
+      document.getElementById('shareGuideModal').classList.remove('hidden');
+      document.getElementById('shareGuideModal').classList.add('flex');
+    }
+
+    function closeShareGuideModal() {
+      document.getElementById('shareGuideModal').classList.add('hidden');
+      document.getElementById('shareGuideModal').classList.remove('flex');
+    }
+
+    // Clear all responses
+    function clearAllResponses() {
+      if (window.confirm("確定要清空所有已蒐集的專家填答資料嗎？")) {
+        responsesData = [];
+        saveState();
+        renderResponsesTable();
+        showToast("已清空填答紀錄", "info");
+      }
+    }
+
+    // Admin Modal & Auth
+    function openAdminAuthModal() {
+      document.getElementById('adminPasswordInput').value = '';
+      document.getElementById('adminAuthError').classList.add('hidden');
+      document.getElementById('adminAuthModal').classList.remove('hidden');
+      document.getElementById('adminAuthModal').classList.add('flex');
+      setTimeout(() => document.getElementById('adminPasswordInput').focus(), 100);
+    }
+
+    function closeAdminAuthModal() {
+      document.getElementById('adminAuthModal').classList.add('hidden');
+      document.getElementById('adminAuthModal').classList.remove('flex');
+    }
+
+    function handleAdminAuth(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('adminPasswordInput').value;
+      if (pwd === '2912') {
+        closeAdminAuthModal();
+        switchToAdminView();
+      } else {
+        document.getElementById('adminAuthError').classList.remove('hidden');
+      }
+    }
+
+    // View Switching
+    function switchToAdminView() {
+      document.getElementById('surveyView').classList.add('hidden');
+      document.getElementById('adminView').classList.remove('hidden');
+      document.getElementById('adminView').classList.add('flex');
+      renderQuestionsTable();
+      renderResponsesTable();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function switchToSurveyView() {
+      harvestQuestionsFromDOM();
+      saveState();
+      renderSurvey();
+      document.getElementById('adminView').classList.add('hidden');
+      document.getElementById('adminView').classList.remove('flex');
+      document.getElementById('surveyView').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Sheet Tab Switching
+    function switchSheetTab(tab) {
+      const qTab = document.getElementById('sheetQuestionsContainer');
+      const rTab = document.getElementById('sheetResponsesContainer');
+      const qBtn = document.getElementById('tabBtnQuestions');
+      const rBtn = document.getElementById('tabBtnResponses');
+
+      if (tab === 'questions') {
+        qTab.classList.remove('hidden');
+        rTab.classList.add('hidden');
+        qBtn.classList.add('bg-white', 'shadow-xs', 'text-slate-900');
+        qBtn.classList.remove('text-slate-600');
+        rBtn.classList.remove('bg-white', 'shadow-xs', 'text-slate-900');
+        rBtn.classList.add('text-slate-600');
+      } else {
+        harvestQuestionsFromDOM();
+        saveState();
+        qTab.classList.add('hidden');
+        rTab.classList.remove('hidden');
+        renderResponsesTable();
+        rBtn.classList.add('bg-white', 'shadow-xs', 'text-slate-900');
+        rBtn.classList.remove('text-slate-600');
+        qBtn.classList.remove('bg-white', 'shadow-xs', 'text-slate-900');
+        qBtn.classList.add('text-slate-600');
+      }
+    }
+
+    // Toast Notification Utility
+    let toastTimeout = null;
+    function showToast(message, type = "success") {
+      const toast = document.getElementById('toastNotification');
+      const text = document.getElementById('toastMessage');
+      const icon = document.getElementById('toastIcon');
+      if (!toast || !text) return;
+
+      text.innerText = message;
+
+      if (type === 'error') {
+        icon.innerHTML = `<svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+      } else if (type === 'warning') {
+        icon.innerHTML = `<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+      } else {
+        icon.innerHTML = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+      }
+
+      toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    // HTML escape helper
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Initialize application on window load
+    window.onload = function() {
+      renderSurvey();
+    };
+  </script>
+</body>
+</html>
